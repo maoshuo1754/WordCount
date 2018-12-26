@@ -1,37 +1,66 @@
 #include<iostream>
 #include<cstdio>
 #include<stdlib.h>
-//#include "io.h"
+#include <fstream>
+#include<string>
+#include<string.h>
+#include <io.h>
+#include<tchar.h>
+#include<stdafx.h>
+#include<winnt.h>
 using namespace std;
-
-
+//五个基本功能
 int count_ch(char file[]);
 int count_word(char file[]);
 int count_line(char file[]);
 int count_noteline(char file[]);
 int count_blank(char file[]);
+//递归查找文件
+void search_file(string path, int idx);
+//对filename执行某个命令
+void command(char order[], char filename[]);
+char para[100][100];
 
-int main()
+int main(int argc, char* argv[])
 {
-	char filename[] = "C:\\Users\\Joo\\Desktop\\结对项目\\in.txt";
-	cout << "字符数："<< count_ch(filename) << endl;
-	cout << "单词数：" << count_word(filename) << endl;
-	cout << "行数：" << count_line(filename) << endl;
-	cout << "代码行：" << count_line(filename) - count_noteline(filename) - count_blank(filename) << endl;
-	cout << "注释行数：" << count_noteline(filename) << endl;
-	cout << "空行数：" << count_blank(filename) << endl;
 
+	if (strcmp(argv[1], "-s") == 0)// 递归处理目录下符合条件的文件  
+	{
+		//获取文件的绝对路径
+		TCHAR szPath[MAX_PATH] = { 0 };
+		if (GetModuleFileName(NULL, szPath, MAX_PATH))
+		{
+			(_tcsrchr(szPath, _T('\\')))[1] = 0;//将获取到的执行程序的绝对路径中的执行程序的名称去掉
+		}
+		for (int i = 0; i < argc; i++)
+		{
+			strcpy_s(para[i], argv[i]);
+		}
+		search_file((string)szPath, argc - 1);
+	}
+	else if (strcmp(argv[1], "-x") == 0)
+	{
+		//你就
+	}
+	else
+	{
+		cout << argc << endl;
+		for (int i = 1; i < argc; i++)
+		{
+			command(argv[i],argv[argc-1]);
+		}
+	}
 }
 
 int count_ch(char file[])//查询字符数
 {
 	FILE* fp1;
+	char ch;
+	int ch_num = 0;
 	if (fopen_s(&fp1, file, "r") != 0)//失败
 	{
 		return -1;
 	}
-	char ch;
-	int ch_num = 0;
 	while ((ch = fgetc(fp1)) != EOF)
 	{
 		if (ch != ' '&&ch != '\t'&&ch != '\n')
@@ -146,7 +175,7 @@ int count_noteline(char file[])//查注释行
 			if (flag_1 == 0) flag_1 = 1;
 			else if (flag_1 == 1 && ch_num <= 3)
 			{
-				n_num++; 
+				n_num++;
 				thisline = 1;
 			}
 		}
@@ -201,4 +230,77 @@ int count_blank(char file[])//查询空行数
 	}
 
 	return blank_row_num;
+}
+
+void search_file(string path, int idx)
+{
+	struct _finddata_t filefind;
+	cout << path << endl;
+	string cur = path + "*.*";//查找全部文件
+	int done = 0;
+	int handle;
+	if ((handle = _findfirst(cur.c_str(), &filefind)) != -1)
+	{
+		while (!(done = _findnext(handle, &filefind))) 
+		{
+			if (strcmp(filefind.name, "..") == 0)
+			{
+				continue;
+			}
+			if ((_A_SUBDIR == filefind.attrib))//判断当前文件是否是一个文件夹
+			{ 
+				cur = path + filefind.name + '\\';//进入文件夹
+				search_file(cur, idx);    //递归处理
+			}
+			else //查找当前文件夹里所有的符合结尾的文件
+			{
+				int len = strlen(filefind.name);
+				for (int i = 0; i < len; i++) 
+				{
+					if (filefind.name[i] == '.') 
+					{
+						len = i;
+						break;
+					}
+				}
+				if (strcmp(filefind.name + len, para[idx] + 1) == 0) //文件尾一样的话就是符合了，比如都是.cpp结尾
+				{
+					cur = path + filefind.name;
+					printf("%s:\n", filefind.name);
+					for (int i = 1; i < idx; i++)
+					{
+						command(para[i], &cur[0]);
+					}
+				}
+			}
+		}
+		_findclose(handle);
+	}
+}
+
+void command(char order[], char filename[])
+{
+	if (order[1] == 'c')
+	{
+		printf("字符数:%d\n", count_ch(filename));
+	}
+	else if (order[1] == 'w')
+	{
+		printf("单词数:%d\n", count_word(filename));
+	}
+	else if (order[1] == 'l')
+	{
+		printf("行数:%d\n", count_line(filename));
+	}
+	else if (order[1] == 'a')
+	{
+		int note = count_noteline(filename);
+		int blank = count_blank(filename);
+		int line = count_line(filename);
+		int codeline = line - blank - note;
+		printf("代码行数:%d\n", codeline);
+		printf("空行数:%d\n", blank);
+		printf("注释行数:%d\n", note);
+	}
+	cout << endl;
 }
